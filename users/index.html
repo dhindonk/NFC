@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Check-In Writer</title>
+</head>
+
+<body>
+    <h1>Daftar dulu yuk</h1>
+    <button id="register">Register</button>
+
+    <h2>Halo! Tap tombol di bawah ini untuk simpan kode unik ke NFC:</h2>
+    <button id="writeNFC">Tulis NFC (Check-In Token)</button>
+
+    <script>
+        document.getElementById('register').addEventListener('click', async () => {
+            const kodeUnik = prompt('Masukkan kode unik Anda:');
+            if (!kodeUnik) return alert('Kode tidak valid.');
+
+            localStorage.setItem('kode_unik', kodeUnik);
+            alert('Kode unik berhasil disimpan!');
+        });
+        
+        document.getElementById('writeNFC').addEventListener('click', async () => {
+            const kodeUnik = localStorage.getItem('kode_unik') || prompt('Masukkan kode unik Anda:');
+            if (!kodeUnik) return alert('Kode tidak valid.');
+
+            try {
+                const ndef = new NDEFReader();
+                await ndef.write(kodeUnik);
+                alert('Kode berhasil ditulis ke NFC!');
+            } catch (err) {
+                alert('Gagal menulis ke NFC: ' + err);
+            }
+        });
+    </script>
+</body>
+
+</html>

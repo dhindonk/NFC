@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Check-In Reader</title>
+</head>
+<body>
+  <h2>Reader Check-In (Admin)</h2>
+  <p>Tap tag NFC user untuk membaca kode unik:</p>
+  <div id="output" style="padding: 10px; border: 1px solid #ccc;"></div>
+
+  <script>
+    const output = document.getElementById('output');
+
+    async function startReading() {
+      try {
+        const ndef = new NDEFReader();
+        await ndef.scan();
+        output.innerText = "Menunggu NFC...";
+
+        ndef.onreading = (event) => {
+          const decoder = new TextDecoder();
+          for (const record of event.message.records) {
+            const text = decoder.decode(record.data);
+            output.innerHTML = `<b>Kode Unik:</b> ${text}`;
+            // Di sini kamu bisa kirim ke Laravel pakai fetch POST:
+            // fetch('/api/checkin', { method: 'POST', body: JSON.stringify({ kode: text }) })
+          }
+        };
+
+      } catch (err) {
+        output.innerText = 'Gagal membaca NFC: ' + err;
+      }
+    }
+
+    startReading();
+  </script>
+</body>
+</html>
