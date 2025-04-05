@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAGIC Las Vegas Event</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            color: #333;
+            background-color: #fafafa;
+            line-height: 1.6;
+            overflow: auto;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .header {
+            background-color: #ffffff;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .back-button {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: #333;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .back-button:hover {
+            color: #e36241;
+        }
+
+        .back-arrow {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+
+        .banner {
+            position: relative;
+            width: 100%;
+            height: 450px;
+            overflow: hidden;
+        }
+
+        .banner img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.8);
+            transform: scale(1.05);
+        }
+
+        .countdown-container {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: center;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 15px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .countdown-item {
+            display: flex;
+            align-items: center;
+            margin: 0 15px;
+            position: relative;
+        }
+
+        .count-box {
+            background-color: #222;
+            color: #fff;
+            font-size: 32px;
+            font-weight: 700;
+            padding: 10px 15px;
+            min-width: 70px;
+            text-align: center;
+            border-radius: 6px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .count-label {
+            position: absolute;
+            right: 50%;
+            top: 50%;
+            transform: translate(100%, 10%) rotate(90deg);
+            background-color: #e36241;
+            color: #fff;
+            font-size: 12px;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            letter-spacing: 1px;
+            border-radius: 3px;
+            font-weight: 600;
+            transform-origin: left center;
+        }
+
+        .separator {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 0 5px;
+            color: #222;
+        }
+
+        .event-content {
+            padding: 60px 20px;
+        }
+
+        .event-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            text-align: center;
+            color: #222;
+            letter-spacing: 1px;
+        }
+
+        .tag-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+        }
+
+        .tag {
+            background-color: #f5f5f5;
+            border: 1px solid #eee;
+            padding: 8px 16px;
+            margin: 0 8px 8px 0;
+            font-size: 14px;
+            border-radius: 4px;
+            font-weight: 500;
+            color: #555;
+            transition: all 0.3s;
+        }
+
+        .tag:hover {
+            background-color: #e36241;
+            color: #fff;
+            border-color: #e36241;
+        }
+
+        .box-event-desc-details {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .event-description {
+            max-width: 800px;
+            margin: 0 auto 50px;
+            padding: 0 20px;
+        }
+
+        .quote {
+            font-size: 20px;
+            font-style: italic;
+            margin-bottom: 25px;
+            color: #555;
+            line-height: 1.8;
+            position: relative;
+            padding-left: 20px;
+            border-left: 3px solid #e36241;
+        }
+
+        .description-text {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #555;
+            text-align: justify;
+        }
+
+        /* Improved Gallery Styles with Parallax */
+        .gallery-section {
+            max-width: 1000px;
+            margin: 0 auto 60px;
+            padding: 0 20px;
+        }
+
+        .gallery-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            text-align: center;
+            color: #222;
+            position: relative;
+            padding-bottom: 15px;
+        }
+
+        .gallery-title:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background-color: #e36241;
+        }
+
+        .gallery-container {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .slides-container {
+            display: flex;
+            transition: transform 0.6s cubic-bezier(0.45, 0, 0.25, 1);
+            height: 500px;
+        }
+
+        .slide {
+            min-width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.8s ease;
+        }
+
+        .slide.active img {
+            transform: scale(1.05);
+        }
+
+        .slide-content {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+            color: white;
+            transform: translateY(100%);
+            transition: transform 0.5s ease;
+        }
+
+        .slide:hover .slide-content {
+            transform: translateY(0);
+        }
+
+        .slide-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .gallery-controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .gallery-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ccc;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .dot.active {
+            background-color: #e36241;
+            transform: scale(1.3);
+        }
+
+        .gallery-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 10;
+            opacity: 0.7;
+            transition: all 0.3s;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .gallery-arrow:hover {
+            opacity: 1;
+            background-color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .gallery-arrow.prev {
+            left: 20px;
+        }
+
+        .gallery-arrow.next {
+            right: 20px;
+        }
+
+        .event-details {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+            padding: 40px 0;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .location,
+        .date {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding: 0 20px;
+        }
+
+        .location-icon,
+        .date-icon {
+            margin-right: 15px;
+            font-size: 24px;
+            color: #e36241;
+            background-color: rgba(227, 98, 65, 0.1);
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .location-details,
+        .date-details {
+            flex: 1;
+        }
+
+        .location-name,
+        .date-text {
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            color: #222;
+            letter-spacing: 1px;
+        }
+
+        .location-address,
+        .date-range {
+            font-size: 15px;
+            color: #666;
+        }
+
+        :root {
+            --primary: #3abf76;
+            --text: #333;
+            --bg: #fff;
+            --overlay: rgba(0, 0, 0, 0.4);
+        }
+
+        .cta-container {
+            text-align: center;
+
+        }
+
+        .cta-button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--primary);
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .cta-button:hover {
+            background-color: #32a766;
+        }
+
+        body.modal-open {
+            overflow: hidden;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--overlay);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .box-modal {
+            height: 100vh;
+            overflow-y: scroll;
+            display: flex;
+            justify-content: center;
+            scrollbar-width: none;
+        }
+
+        .modal {
+            background: var(--bg);
+            width: 90%;
+            max-width: 400px;
+            padding: 2rem;
+            margin: 1.2rem;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            height: min-content;
+            transform: scale(0.9);
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        label {
+            font-weight: 500;
+            margin-bottom: 0.1rem;
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: .8rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #32a766;
+        }
+
+        .btn-secondary {
+            background-color: #ccc;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background-color: #bbb;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            cursor: pointer;
+        }
+
+        .submit-btn:hover {
+            background-color: #32a766;
+        }
+
+        .close-link {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            background: #efefef;
+            color: #333;
+            border-radius: 15px;
+            padding: 10px;
+            font-weight: 600;
+        }
+
+
+        /* Load Google Font */
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .modal {
+                padding: 1.5rem;
+            }
+
+
+
+
+            .event-title {
+                font-size: 36px;
+            }
+
+            .countdown-container {
+                width: 90%;
+                padding: 10px 20px;
+            }
+
+            .count-box {
+                font-size: 24px;
+                min-width: 50px;
+            }
+
+            .count-label {
+                font-size: 10px;
+            }
+
+            .separator {
+                font-size: 24px;
+            }
+
+            .slides-container {
+                height: 400px;
+            }
+
+            .banner {
+                height: 350px;
+            }
+
+            .box-event-desc-details {
+                flex-direction: column;
+                align-items: center;
+                padding: 0;
+                gap: 0;
+            }
+
+            .event-details {
+                /* padding: 0; */
+                margin-bottom: 50px;
+                border-radius: 20px;
+                background: #efefef;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .event-title {
+                font-size: 28px;
+            }
+
+            .countdown-item {
+                margin: 0 8px;
+            }
+
+            .count-box {
+                font-size: 20px;
+                min-width: 40px;
+                padding: 8px;
+            }
+
+            .count-label {
+                font-size: 9px;
+                padding: 3px 6px;
+            }
+
+            .separator {
+                font-size: 20px;
+                margin: 0 2px;
+            }
+
+            .location,
+            .date {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .location-icon,
+            .date-icon {
+                margin-bottom: 15px;
+                margin-right: 0;
+            }
+
+            .slides-container {
+                height: 300px;
+            }
+
+            .gallery-title {
+                font-size: 24px;
+            }
+
+            .banner {
+                height: 300px;
+            }
+
+            .gallery-arrow {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <a href="#" class="back-button" onclick="history.back(); return false;">
+                <span class="back-arrow">←</span>
+                <span>EVENT DETAILS</span>
+            </a>
+        </header>
+
+        <div class="banner">
+            <img src="Banner DKM.jpg" alt="MAGIC Las Vegas Event" id="bannerImage">
+            <div class="countdown-container">
+                <div class="countdown-item">
+                    <div class="count-box" id="days">00</div>
+                    <div class="count-label">DAYS</div>
+                </div>
+                <div class="separator">:</div>
+                <div class="countdown-item">
+                    <div class="count-box" id="hours">00</div>
+                    <div class="count-label">HOURS</div>
+                </div>
+                <div class="separator">:</div>
+                <div class="countdown-item">
+                    <div class="count-box" id="minutes">00</div>
+                    <div class="count-label">MINS</div>
+                </div>
+                <div class="separator">:</div>
+                <div class="countdown-item">
+                    <div class="count-box" id="seconds">00</div>
+                    <div class="count-label">SECS</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="event-content">
+            <h1 class="event-title">MAGIC LAS VEGAS</h1>
+
+            <div class="tag-container">
+                <div class="tag">APPAREL & CLOTHING</div>
+                <div class="tag">FASHION</div>
+                <div class="tag">BEAUTY</div>
+            </div>
+
+            <div class="box-event-desc-details">
+                <div class="event-description" style="flex: 1;">
+                    <p class="quote">"Trend-driven & young contemporary apparel, footwear and accessories spanning value
+                        to
+                        marketing."</p>
+                    <p class="description-text">MAGIC Las Vegas is a fashion extravaganza featuring a vast array of
+                        trendy
+                        brands in apparel, footwear, and accessories. It's not just an event but a community that brings
+                        together buyers, influencers, and industry leaders. Experience the latest fashion trends,
+                        network
+                        with industry professionals, and discover innovative designs that will shape the future of
+                        fashion.
+                    </p>
+                </div>
+
+                <div class="event-details" style="flex: 1; border: none;">
+                    <div class="location">
+                        <div class="location-icon">📍</div>
+                        <div class="location-details">
+                            <div class="location-name">LAS VEGAS CONVENTION CENTER</div>
+                            <div class="location-address">3150 Paradise Rd, Las Vegas, NV 89109, USA</div>
+                        </div>
+                    </div>
+
+                    <div class="date">
+                        <div class="date-icon">📅</div>
+                        <div class="date-details">
+                            <div class="date-text">FRIDAY, AUG 13 - 16, 2023</div>
+                            <div class="date-range">9:00 AM - 6:00 PM Daily</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="gallery-section">
+                <h2 class="gallery-title">EVENT GALLERY</h2>
+                <div class="gallery-container">
+                    <div class="gallery-arrow prev" onclick="changeSlide(-1)">❮</div>
+                    <div class="gallery-arrow next" onclick="changeSlide(1)">❯</div>
+
+                    <div class="slides-container" id="slidesContainer">
+                        <div class="slide active">
+                            <img src="Banner DKM.jpg" alt="MAGIC Las Vegas Event">
+                            <div class="slide-content">
+                                <div class="slide-title">Main Event Hall</div>
+                                <p>Showcase of the latest fashion trends at MAGIC Las Vegas</p>
+                            </div>
+                        </div>
+                        <div class="slide">
+                            <img src="kajian forkamu.jpg" alt="Fashion Show">
+                            <div class="slide-content">
+                                <div class="slide-title">Runway Showcase</div>
+                                <p>Live fashion shows featuring top designers</p>
+                            </div>
+                        </div>
+                        <div class="slide">
+                            <img src="Banner DKM.jpg" alt="Exhibition Hall">
+                            <div class="slide-content">
+                                <div class="slide-title">Exhibition Space</div>
+                                <p>Brands from around the world display their latest collections</p>
+                            </div>
+                        </div>
+                        <div class="slide">
+                            <img src="kajian forkamu.jpg" alt="Designer Collections">
+                            <div class="slide-content">
+                                <div class="slide-title">Designer Collections</div>
+                                <p>Exclusive preview of upcoming seasonal trends</p>
+                            </div>
+                        </div>
+                        <div class="slide">
+                            <img src="Banner DKM.jpg" alt="Runway Models">
+                            <div class="slide-content">
+                                <div class="slide-title">Fashion Models</div>
+                                <p>Professional models showcasing designer outfits</p>
+                            </div>
+                        </div>
+                        <div class="slide">
+                            <img src="kajian forkamu.jpg" alt="Accessories Display">
+                            <div class="slide-content">
+                                <div class="slide-title">Accessories Showcase</div>
+                                <p>Trending accessories and fashion complements</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="gallery-dots" id="galleryDots">
+                </div>
+            </div>
+
+            <!-- Tombol Trigger -->
+            <div class="cta-container">
+                <button id="openModal" class="cta-button">GET THE TICKET NOW</button>
+            </div>
+
+            <div id="ticketModal" class="modal-overlay">
+                <div class="box-modal">
+                    <div class="modal">
+                        <h2>Pendaftaran Tiket</h2>
+
+                        <div class="form-group">
+                            <label>Apakah kamu sudah pernah daftar?</label>
+                            <div class="button-group">
+                                <button type="button" id="showBaru" class="btn btn-secondary">Belum Pernah</button>
+                                <button type="button" id="showLama" class="btn btn-secondary">Sudah Pernah</button>
+                            </div>
+                        </div>
+
+                        <form id="formBaru" style="display: none">
+                            <div class="form-group">
+                                <label for="nama">Nama Lengkap</label>
+                                <input type="text" id="nama" placeholder="Nama" maxlength="50" required />
+                                <small id="namaCount" style="color: #999;">50 karakter tersisa</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="wa">Nomor WhatsApp</label>
+                                <div style="display: flex; gap: 6px;">
+                                    <input type="text" value="+62" disabled style="width: 60px;" />
+                                    <input type="tel" id="wa" placeholder="812xxxxxxx" required pattern="[0-9]*"
+                                        inputmode="numeric" maxlength="14" />
+                                </div>
+                                <small id="numberPlaceholder" style="color: #999;">Contoh: 812xxxxxxx</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="instansi">Instansi</label>
+                                <input type="text" id="instansi" placeholder="Instansi" required />
+                            </div>
+
+                            <button type="submit" class="submit-btn">Daftar</button>
+                        </form>
+                        <form id="formLama" style="display: none">
+                            <input type="text" placeholder="Nickname / Kode Unik" required />
+                            <button type="submit" class="submit-btn">Lanjut</button>
+                        </form>
+
+                        <div id="closeModal" class="close-link">Tutup</div>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <!-- script pop up -->
+    <script>
+        const modalOverlay = document.getElementById("ticketModal");
+        const modal = modalOverlay.querySelector(".modal");
+        const openBtn = document.getElementById("openModal");
+        const closeBtn = document.getElementById("closeModal");
+        const formBaru = document.getElementById("formBaru");
+        const formLama = document.getElementById("formLama");
+        const showBaru = document.getElementById("showBaru");
+        const showLama = document.getElementById("showLama");
+
+        openModal.addEventListener("click", () => {
+            modal.classList.remove("hidden");
+            document.body.classList.add("modal-open"); // kunci scroll body
+            gsap.from(".modal", { opacity: 0, scale: 0.9, duration: 0.4 });
+        });
+
+        closeModal.addEventListener("click", () => {
+            modal.classList.add("hidden");
+            document.body.classList.remove("modal-open"); // balikin scroll body
+        });
+
+        // Add tap outside to close
+        modalOverlay.addEventListener("click", (e) => {
+            if (e.target === modalOverlay) {
+                gsap.to(modal, {
+                    opacity: 0,
+                    y: -30,
+                    scale: 0.95,
+                    duration: 0.4,
+                    ease: "power2.in",
+                    onComplete: () => {
+                        modalOverlay.style.display = "none";
+                        document.body.classList.remove("modal-open");
+                    }
+                });
+            }
+        });
+
+        openBtn.addEventListener("click", () => {
+            modalOverlay.style.display = "flex";
+            gsap.fromTo(modal, { opacity: 0, y: 50, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "power2.out" });
+            gsap.from(modal.querySelectorAll("h2, label, input, button, #namaCount, #numberPlaceholder"), {
+                opacity: 0,
+                y: 20,
+                duration: 0.6,
+                stagger: 0.1,
+                delay: 0.3
+            });
+        });
+
+        closeBtn.addEventListener("click", () => {
+            gsap.to(modal, {
+                opacity: 0,
+                y: -30,
+                scale: 0.95,
+                duration: 0.4,
+                ease: "power2.in",
+                onComplete: () => modalOverlay.style.display = "none"
+            });
+        });
+
+        showBaru.addEventListener("click", () => {
+            formBaru.style.display = "block";
+            formLama.style.display = "none";
+            gsap.from(formBaru, { opacity: 0, y: 20, duration: 0.4 });
+        });
+
+        showLama.addEventListener("click", () => {
+            formLama.style.display = "block";
+            formBaru.style.display = "none";
+            gsap.from(formLama, { opacity: 0, y: 20, duration: 0.4 });
+        });
+
+        formLama.addEventListener("submit", (e) => {
+            e.preventDefault();
+            alert("Kode unik diterima, ambil data dari database!");
+            closeBtn.click();
+        });
+
+        // Toggle active state between buttons
+        const toggleBtns = document.querySelectorAll('.button-group .btn');
+
+        toggleBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active-tab class from all buttons
+                toggleBtns.forEach(b => {
+                    b.classList.remove('active-tab');
+                    b.classList.remove('btn-primary');
+                    b.classList.add('btn-secondary');
+                });
+
+                // Add active-tab class to clicked button
+                btn.classList.add('active-tab');
+                btn.classList.add('btn-primary');
+                btn.classList.remove('btn-secondary');
+            });
+        });
+
+        // add new
+        const namaInput = document.getElementById("nama");
+        const namaCount = document.getElementById("namaCount");
+
+        // Karakter Counter
+        if (namaInput) {
+            namaInput.addEventListener("input", () => {
+                const remaining = 50 - namaInput.value.length;
+                namaCount.textContent = `${remaining} karakter tersisa`;
+            });
+        }
+
+        // Validasi Nomor WA hanya angka
+        const waInput = document.getElementById("wa");
+        waInput.addEventListener("input", () => {
+            waInput.value = waInput.value.replace(/[^0-9]/g, "");
+        });
+
+        // Validasi submit formBaru
+        formBaru.addEventListener("submit", (e) => {
+            e.preventDefault();
+
+            if (namaInput.value.length === 0 || waInput.value.length < 8) {
+                alert("Pastikan Nama dan Nomor WhatsApp diisi dengan benar!");
+                return;
+            }
+
+            alert("Data pendaftaran baru disimpan!");
+            closeBtn.click();
+        });
+    </script>
+
+    <!-- script other -->
+    <script>
+        // Parallax effect for banner image
+        window.addEventListener('scroll', function () {
+            const banner = document.getElementById('bannerImage');
+            const scrollPosition = window.scrollY;
+
+            // Apply parallax effect to banner image
+            if (scrollPosition <= 500) {
+                banner.style.transform = `scale(1.05) translateY(${scrollPosition * 0.15}px)`;
+            }
+        });
+
+        // Set countdown timer with GMT+7 offset (Asia/Jakarta)
+        const countDownDate = new Date("Apr 05, 2025 23:24:00 GMT+0700").getTime();
+
+        // Update countdown every 1 second
+        const countdownTimer = setInterval(function () {
+            // Get current time
+            const now = new Date().getTime();
+
+            // Calculate distance between event time and current time
+            const distance = countDownDate - now;
+
+            // If countdown is finished, display "00" for all
+            if (distance < 0) {
+                clearInterval(countdownTimer);
+                document.getElementById("days").innerHTML = "00";
+                document.getElementById("hours").innerHTML = "00";
+                document.getElementById("minutes").innerHTML = "00";
+                document.getElementById("seconds").innerHTML = "00";
+                return;
+            }
+
+            // Calculate days, hours, minutes, and seconds
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            // Display results with leading zeros if needed
+            document.getElementById("days").innerHTML = days < 10 ? "0" + days : days;
+            document.getElementById("hours").innerHTML = hours < 10 ? "0" + hours : hours;
+            document.getElementById("minutes").innerHTML = minutes < 10 ? "0" + minutes : minutes;
+            document.getElementById("seconds").innerHTML = seconds < 10 ? "0" + seconds : seconds;
+        }, 1000);
+
+        // Enhanced Image Gallery with Slide Functionality
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const dotsContainer = document.getElementById('galleryDots');
+        const slidesContainer = document.getElementById('slidesContainer');
+
+        // Create dots based on number of slides
+        for (let i = 0; i < totalSlides; i++) {
+            const dot = document.createElement('div');
+            dot.classList.add('dot');
+            if (i === 0) dot.classList.add('active');
+            dot.addEventListener('click', () => goToSlide(i));
+            dotsContainer.appendChild(dot);
+        }
+
+        // Change slide function
+        function changeSlide(n) {
+            showSlide(currentSlide + n);
+        }
+
+        // Go to specific slide
+        function goToSlide(n) {
+            showSlide(n);
+        }
+
+        // Show slide function
+        function showSlide(n) {
+            // Handle wrapping around
+            if (n >= totalSlides) {
+                currentSlide = 0;
+            } else if (n < 0) {
+                currentSlide = totalSlides - 1;
+            } else {
+                currentSlide = n;
+            }
+
+            // Move slides container
+            slidesContainer.style.transform = `translateX(-${currentSlide * 100}%)`;
+
+            // Update active classes
+            document.querySelectorAll('.slide').forEach(slide => {
+                slide.classList.remove('active');
+            });
+            slides[currentSlide].classList.add('active');
+
+            // Update dots
+            document.querySelectorAll('.dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentSlide);
+            });
+        }
+
+        // Auto-slide functionality
+        let slideInterval = setInterval(() => {
+            changeSlide(1);
+        }, 5000);
+
+        // Pause auto-slide when hovering over the gallery
+        document.querySelector('.gallery-container').addEventListener('mouseenter', () => {
+            clearInterval(slideInterval);
+        });
+
+        // Resume auto-slide when mouse leaves the gallery
+        document.querySelector('.gallery-container').addEventListener('mouseleave', () => {
+            slideInterval = setInterval(() => {
+                changeSlide(1);
+            }, 5000);
+        });
+    </script>
+</body>
+
+</html>
