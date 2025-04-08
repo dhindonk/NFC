@@ -1,9 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Check-In Writer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 0;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
 </head>
 
 <body>
@@ -12,29 +46,90 @@
 
     <h2>Halo! Tap tombol di bawah ini untuk simpan kode unik ke NFC:</h2>
     <button id="writeNFC">Tulis NFC (Check-In Token)</button>
+    
+    <div id="status" class="status" style="display: none;"></div>
 
     <script>
-        document.getElementById('register').addEventListener('click', async () => {
+        // Flag untuk menandai proses NFC sedang berjalan
+        let isNfcWriteInProgress = false;
+        
+        document.getElementById('register').addEventListener('click', () => {
             const kodeUnik = prompt('Masukkan kode unik Anda:');
-            if (!kodeUnik) return alert('Kode tidak valid.');
+            if (!kodeUnik) {
+                showStatus('Kode tidak valid.', 'error');
+                return;
+            }
 
             localStorage.setItem('kode_unik', kodeUnik);
-            alert('Kode unik berhasil disimpan!');
+            showStatus('Kode unik berhasil disimpan!', 'success');
         });
         
         document.getElementById('writeNFC').addEventListener('click', async () => {
+            // Cek apakah proses NFC sedang berjalan
+            if (isNfcWriteInProgress) {
+                showStatus('Proses tulis NFC sedang berjalan, harap tunggu...', 'error');
+                return;
+            }
+            
             const kodeUnik = localStorage.getItem('kode_unik') || prompt('Masukkan kode unik Anda:');
-            if (!kodeUnik) return alert('Kode tidak valid.');
+            if (!kodeUnik) {
+                showStatus('Kode tidak valid.', 'error');
+                return;
+            }
 
             try {
+                // Set flag bahwa proses NFC sedang berlangsung
+                isNfcWriteInProgress = true;
+                
+                // Cek apakah browser mendukung Web NFC API
+                if (typeof NDEFReader !== 'function') {
+                    throw new Error('Browser Anda tidak mendukung NFC. Gunakan Chrome di Android.');
+                }
+                
+                showStatus('Menunggu perangkat NFC. Silakan dekatkan tag NFC ke perangkat Anda...', 'success');
+                
                 const ndef = new NDEFReader();
-                await ndef.write(kodeUnik);
-                alert('Kode berhasil ditulis ke NFC!');
+                await ndef.write({
+                    records: [{ recordType: "text", data: kodeUnik }]
+                });
+                
+                showStatus('Kode berhasil ditulis ke NFC!', 'success');
             } catch (err) {
-                alert('Gagal menulis ke NFC: ' + err);
+                console.error(err);
+                let errorMsg = 'Gagal menulis ke NFC: ';
+                
+                if (err.name === 'NotSupportedError') {
+                    errorMsg += 'Perangkat tidak mendukung NFC.';
+                } else if (err.name === 'NotAllowedError') {
+                    errorMsg += 'Izin NFC ditolak.';
+                } else if (err.name === 'AbortError') {
+                    errorMsg += 'Operasi NFC dibatalkan. Tunggu beberapa detik dan coba lagi.';
+                } else {
+                    errorMsg += err.message || 'Error tidak dikenal.';
+                }
+                
+                showStatus(errorMsg, 'error');
+            } finally {
+                // Reset flag setelah selesai
+                setTimeout(() => {
+                    isNfcWriteInProgress = false;
+                }, 1000);
             }
         });
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status ' + type;
+            
+            // Hapus kelas setelah beberapa detik (opsional)
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 5000);
+            }
+        }
     </script>
 </body>
-
 </html>
