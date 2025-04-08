@@ -52,6 +52,10 @@
         button:hover {
             background-color: #0b7dda;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
         .output-container {
             margin-top: 20px;
             padding: 15px;
@@ -158,7 +162,7 @@
         // Flag untuk memastikan hanya ada satu proses pemindaian
         let isScanning = false;
         // Array untuk menyimpan history check-in
-        let checkInHistory = [];
+        let checkInHistory = JSON.parse(localStorage.getItem('checkInHistory') || '[]');
         
         // Fungsi untuk memulai pemindaian NFC
         async function startReading() {
@@ -174,85 +178,114 @@
                 }
                 
                 isScanning = true;
+                startReadingBtn.disabled = true;
                 scanStatusDiv.textContent = "Menunggu tag NFC...";
                 scanStatusDiv.classList.add('scan-active');
                 startReadingBtn.textContent = "Pemindaian Aktif";
                 
+                // Membuat dan menggunakan NDEFReader
                 ndefReader = new NDEFReader();
                 await ndefReader.scan();
                 
-                ndefReader.onreading = (event) => {
-                    handleNfcReading(event);
-                };
+                ndefReader.addEventListener("reading", handleNfcReading);
                 
-                ndefReader.onerror = (error) => {
-                    console.error(`Error: ${error}`);
-                    scanStatusDiv.textContent = `Error: ${error}`;
+                // Tambahkan listener untuk error
+                ndefReader.addEventListener("error", (error) => {
+                    console.error(`Error: ${error.message}`);
+                    scanStatusDiv.textContent = `Error: ${error.message}`;
                     scanStatusDiv.classList.remove('scan-active');
                     isScanning = false;
+                    startReadingBtn.disabled = false;
                     startReadingBtn.textContent = "Mulai Baca NFC";
-                };
+                });
                 
             } catch (error) {
                 console.error(error);
                 scanStatusDiv.textContent = `Gagal memulai pemindaian: ${error.message}`;
                 scanStatusDiv.classList.remove('scan-active');
                 isScanning = false;
+                startReadingBtn.disabled = false;
                 startReadingBtn.textContent = "Mulai Baca NFC";
             }
         }
         
         // Fungsi untuk menangani pembacaan NFC
         function handleNfcReading(event) {
-            const decoder = new TextDecoder();
-            let kodeUnik = "";
-            let operationType = "";
-            
-            // Baca semua record dari pesan NFC
-            for (const record of event.message.records) {
-                const data = decoder.decode(record.data);
+            try {
+                const decoder = new TextDecoder();
+                let kodeUnik = "";
+                let jsonData = null;
                 
-                if (record.recordType === "text") {
-                    if (!kodeUnik) {
-                        kodeUnik = data;
-                    } else {
-                        operationType = data;
+                // Baca semua record dari pesan NFC
+                for (const record of event.message.records) {
+                    console.log("Record type:", record.recordType);
+                    console.log("MIME type:", record.mediaType);
+                    
+                    const data = decoder.decode(record.data);
+                    console.log("Data:", data);
+                    
+                    if (record.recordType === "mime" && record.mediaType === "application/event-checkin") {
+                        try {
+                            jsonData = JSON.parse(data);
+                            kodeUnik = jsonData.kode;
+                        } catch (e) {
+                            console.error("Error parsing JSON:", e);
+                        }
+                    } else if (record.recordType === "text") {
+                        // Backup jika JSON tidak berhasil di-parse
+                        if (!kodeUnik) {
+                            kodeUnik = data;
+                        }
                     }
                 }
-            }
-            
-            // Tampilkan kode unik
-            if (kodeUnik) {
-                const timestamp = new Date().toLocaleTimeString();
-                const checkInInfo = {
-                    kode: kodeUnik,
-                    time: timestamp,
-                    operation: operationType || "check-in"
-                };
                 
-                // Tambahkan ke history
-                checkInHistory.unshift(checkInInfo);
-                if (checkInHistory.length > 50) {
-                    checkInHistory.pop(); // Batas maksimal 50 entri
+                // Jika tidak ada data yang ditemukan, coba ambil dari serialisasi
+                if (!kodeUnik && event.serialNumber) {
+                    kodeUnik = event.serialNumber;
                 }
                 
-                // Update tampilan
-                outputDiv.innerHTML = `
-                    <div class="check-in-record">
-                        <b>Kode Unik:</b> ${kodeUnik}<br>
-                        <b>Waktu:</b> ${timestamp}<br>
-                        <b>Operasi:</b> ${operationType || "check-in"}
-                    </div>
-                `;
-                
-                // Update history list
-                updateHistoryList();
-                
-                // Tampilkan notifikasi
-                showNotification(`Check-in berhasil: ${kodeUnik}`);
-                
-                // Di sini bisa ditambahkan kode untuk mengirim data ke server
-                // sendToServer(checkInInfo);
+                // Tampilkan kode unik
+                if (kodeUnik) {
+                    const timestamp = new Date().toLocaleTimeString();
+                    const checkInInfo = {
+                        kode: kodeUnik,
+                        time: timestamp,
+                        operation: jsonData?.action || "check-in",
+                        details: jsonData || {}
+                    };
+                    
+                    // Tambahkan ke history
+                    checkInHistory.unshift(checkInInfo);
+                    if (checkInHistory.length > 50) {
+                        checkInHistory.pop(); // Batas maksimal 50 entri
+                    }
+                    
+                    // Simpan ke localStorage
+                    localStorage.setItem('checkInHistory', JSON.stringify(checkInHistory));
+                    
+                    // Update tampilan
+                    outputDiv.innerHTML = `
+                        <div class="check-in-record">
+                            <b>Kode Unik:</b> ${kodeUnik}<br>
+                            <b>Waktu:</b> ${timestamp}<br>
+                            <b>Operasi:</b> ${jsonData?.action || "check-in"}
+                        </div>
+                    `;
+                    
+                    // Update history list
+                    updateHistoryList();
+                    
+                    // Tampilkan notifikasi
+                    showNotification(`Check-in berhasil: ${kodeUnik}`);
+                    
+                    // Di sini bisa ditambahkan kode untuk mengirim data ke server
+                    // sendToServer(checkInInfo);
+                } else {
+                    outputDiv.innerHTML = '<div class="error">Tidak dapat membaca kode dari tag NFC!</div>';
+                }
+            } catch (error) {
+                console.error("Error saat memproses tag NFC:", error);
+                outputDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
             }
         }
         
@@ -276,9 +309,9 @@
             notificationDiv.textContent = message;
             notificationDiv.style.display = 'block';
             
-            // Mainkan suara notifikasi jika diinginkan
+            // Mainkan suara notifikasi
             try {
-                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YWoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBhMxYaeqcjYTACMucNfluo9UFwEQFk+a2/LDdzMGAA5V4PvzyoZVGwAJOYDt//7XolwcAAwna9z//N2mZyMBBhpR0f//36dyLAD//UbH/P/gqwebCwALKV/O/9ypdEwEAApJ5/7ptpVkNQUAAlK96feuhGAzBAAANrny/caNZWMhAwIGMrT/8qqIc0Ya//4/lvb/mnJRPkNbMf3/Jo6juglGt/0ROKZGg9MdJpQ5CVN5SCYvvuQdu5UQBzRMm9+u8XaPNw0XkPLWMgw9deTAe5ERFtNPI3MNBL5ARO//VwU3IVhAO7cwCVz/9QsEu+PpMDZqH2Q3CZP8NRIddPzmUwYuhyUgQxSL+XYOLXDnxWARNJLrIC4fd+nYbhMviM8VLyF239yEEgkb1U5OMSynlO/yYhZTudouGUunmJWxmy4s9zaA4I3kwDD1NobqxY77MmgOSzV3/ZYcHtU9F0D//3SdNyqxJg8SoLMBQ35aKoLQVjOK4X8XPEL9elfHOypLRe38Vzc3Iji4sANyP9YyUNOBGj2e4swlL2RHj+88OR50NHbuMi5v57chDlZxgACb+pAJ2zcr5Z4vCe2RHAaHt8nKCwtW4D0OF6Xx1J6wRuXA+QVVV4fhvqAaWNDPSFxqo+X5K3DTn//1TAoTxBKv/5YsF9DRQSd5xQv//Xt0uC5sU0pcNVRu4/83mLJdHd3D3RQVh20MJxfW9v/XnW9WLVry9wdDsPL/vppjWCZ8/OgUL56w/tWeaUQMgtLmGTJ9nv+frnZCF26L0w8yh5vu0pprURZdhM0fWZJ/uaJvYWAbWErLIWyffrS9c1tOKUJOxSFroo2qzGxCKzRcmNgga6Obp9tSPzBNiOQccaKmq9JCRDpFdOklZKO0rrR9YkdIZGnSK2ShubDPXVA+YFiF2SBuqMSssXBEWWHGyjFsqMixulVZXWe/tDhop8yu32FLbWzWfztlm8qofmxSaX3TYUB7kcuMjnNeW3TqNkiPua53iGdjaYf/M0un1I6OdF5vdej5OUmx34SEgWVqdt4+SLnpj3dbZnXi4kFGue6AdHFhb3ze8kJLteuDendhcXzVu0pMrt+JtnBpan3ctkdPtuCJwIdkZoLWrFBRruKL9JVcaX/QzFVRo+yT65dcXnPBz1hRovSbq5FTYn3H3FVNm/aioodXY4TF3k5Ll/e3gnxCYoXJ2UNJnf/GZ4ZOWlwvhSG7VHKYnr2XWUc2hie5TEBmpaanllZMMoIpuEw8aKemqqNdSUBwMrtPOmilqqisaFRGbDa5TzJoo6mmr28/UmU0uVEtaaSqprN9O0pqNbleKG+lq6m1iixScDK4YiF1qLCrvZwbSXQpuWsYfKu4upjGT4iUt2n9grHgRzOlMa9q9YW28kvMwrEyp2v3jMGLEeeuXYQypmz9lsudJfKbE3gpqG78oNW2SvqNAHEnrXL8qdLQWP59AW4kt3f9tdbfdPx7AXMhvH79wtv0ivt7AHogwYP9zN8Gm/x9AXkexof91OQHJ/p5AXogxoz93OQDSPp3AXogxo3+4eMAYPp3AHkgxI7+4+EDbPp3AHggwpD+5eLScwAAeQDBk/7o5HXpAAAgewDAl/7q55oFAACdDL+b/u71ACoAAKyA+h3nZAAAMh4DduFWAAAAVaYRwgAAAH9ZO2MAAADI5s0AAAAA//ywAQAAAAAA//zJAQAAAAAA//3gAQAAAAAA//7zAQAAAAAA//8BAQAAAAAA');
+                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YWoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBhMxYaeqcjYTACMucNfluo9UFwEQFk+a2/LDdzMGAA5V4PvzyoZVGwAJOYDt//7XolwcAAwna9z//N2mZyMBBhpR0f//36dyLAD//UbH/P/gqwebCwALKV/O/9ypdEwEAApJ5/7ptpVkNQUAAlK96feuhGAzBAAANrny/caNZWMhAwIGMrT/8qqIc0Ya//4/lvb/mnJRPkNbMf3/Jo6juglGt/0ROKZGg9MdJpQ5CVN5SCYvvuQdu5UQBzRMm9+u8XaPNw0XkPLWMgw9deTAe5ERFtNPI3MNBL5ARO//VwU3IVhAO7cwCVz/9QsEu+PpMDZqH2Q3CZP8NRIddPzmUwYuhyUgQxSL+XYOLXDnxWARNJLrIC4fd+nYbhMviM8VLyF239yEEgkb1U5OMSynlO/yYhZTudouGUunmJWxmy4s9zaA4I3kwDD1NobqxY77MmgOSzV3/ZYcHtU9F0D//3SdNyqxJg8SoLMBQ35aKoLQVjOK4X8XPEL9elfHOypLRe38Vzc3Iji4sANyP9YyUNOBGj2e4swlL2RHj+88OR50NHbuMi5v57chDlZxgACb+pAJ2zcr5Z4vCe2RHAaHt8nKCwtW4D0OF6Xx1J6wRuXA+QVVV4fhvqAaWNDPSFxqo+X5K3DTn//1TAoTxBKv/5YsF9DRQSd5xQv//Xt0uC5sU0pcNVRu4/83mLJdHd3D3RQVh20MJxfW9v/XnW9WLVry9wdDsPL/vppjWCZ8/OgUL56w/tWeaUQMgtLmGTJ9nv+frnZCF26L0w8yh5vu0pprURZdhM0fWZJ/uaJvYWAbWErLIWyffrS9c1tOKUJOxSFroo2qzGxCKzRcmNgga6Obp9tSPzBNiOQccaKmq9JCRDpFdOklZKO0rrR9YkdIZGnSK2ShubDPXVA+YFiF2SBuqMSssXBEWWHGyjFsqMixulVZXWe/tDhop8yu32FLbWzWfztlm8qofmxSaX3TYUB7kcuMjnNeW3TqNkiPua53iGdjaYf/M0un1I6OdF5vdej5OUmx34SEgWVqdt4+SLnpj3dbZnXi4kFGue6AdHFhb3ze8kJLteuDendhcXzVu0pMrt+JtnBpan3ctkdPtuCJwIdkZoLWrFBRruKL9JVcaX/QzFVRo+yT65dcXnPBz1hRovSbq5FTYn3H3FVNm/aioodXY4TF3k5Llfa3gnxCYoXJ2UNJnf/GZ4ZOWlwvhSG7VHKYnr2XWUc2hie5TEBmpaanllZMMoIpuEw8aKemqqNdSUBwMrtPOmilqqisaFRGbDa5TzJoo6mmr28/UmU0uVEtaaSqprN9O0pqNbleKG+lq6m1iixScDK4YiF1qLCrvZwbSXQpuWsYfKu4upjGT4iUt2n9grHgRzOlMa9q9YW28kvMwrEyp2v3jMGLEeeuXYQypmz9lsudJfKbE3gpqG78oNW2SvqNAHEnrXL8qdLQWP59AW4kt3f9tdbfdPx7AXMhvH79wtv0ivt7AHogwYP9zN8Gm/x9AXkexof91OQHJ/p5AXogxoz93OQDSPp3AXogxo3+4eMAYPp3AHkgxI7+4+EDbPp3AHggwpD+5eLScwAAeQDBk/7o5HXpAAAgewDAl/7q55oFAACdDL+b/u71ACoAAKyA+h3nZAAAMh4DduFWAAAAVaYRwgAAAH9ZO2MAAADI5s0AAAAA//ywAQAAAAAA//zJAQAAAAAA//3gAQAAAAAA//7zAQAAAAAA//8BAQAAAAAA');
                 audio.play();
             } catch (e) {
                 console.log('Notifikasi suara tidak dapat diputar', e);
@@ -293,45 +326,23 @@
         // Fungsi untuk mengirim data ke server (contoh)
         function sendToServer(data) {
             // Implementasi mengirim data ke server
-            // Contoh dengan fetch API:
-            /*
-            fetch('/api/checkin', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(result => {
-                console.log('Success:', result);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
-            */
             console.log('Data siap dikirim ke server:', data);
         }
         
         // Event listener untuk tombol mulai pemindaian
         startReadingBtn.addEventListener('click', startReading);
         
-        // Restore history dari local storage jika ada
+        // Load history dari local storage dan tampilkan saat halaman dimuat
         document.addEventListener('DOMContentLoaded', () => {
-            const savedHistory = localStorage.getItem('checkInHistory');
-            if (savedHistory) {
-                try {
-                    checkInHistory = JSON.parse(savedHistory);
-                    updateHistoryList();
-                } catch (e) {
-                    console.error('Error loading history:', e);
-                }
+            // Update tampilan history
+            updateHistoryList();
+            
+            // Cek apakah browser mendukung Web NFC API
+            if (typeof NDEFReader !== 'function') {
+                startReadingBtn.disabled = true;
+                startReadingBtn.textContent = 'NFC Tidak Didukung';
+                scanStatusDiv.textContent = 'Browser Anda tidak mendukung NFC. Gunakan Chrome di Android.';
             }
-        });
-        
-        // Simpan history ke local storage saat halaman akan ditutup
-        window.addEventListener('beforeunload', () => {
-            localStorage.setItem('checkInHistory', JSON.stringify(checkInHistory));
         });
     </script>
 </body>

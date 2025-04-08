@@ -52,6 +52,10 @@
         button:hover {
             background-color: #45a049;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
         .status {
             margin-top: 20px;
             padding: 15px;
@@ -121,6 +125,7 @@
     <script>
         // Flag untuk menandai proses NFC sedang berjalan
         let isNfcWriteInProgress = false;
+        let ndefController = null;
         
         // Elemen-elemen DOM
         const registerBtn = document.getElementById('register');
@@ -135,6 +140,13 @@
             if (savedCode) {
                 savedCodeSpan.textContent = savedCode;
                 userInfoDiv.style.display = 'block';
+            }
+            
+            // Cek apakah browser mendukung Web NFC API
+            if (typeof NDEFReader !== 'function') {
+                writeNFCBtn.disabled = true;
+                writeNFCBtn.textContent = 'NFC Tidak Didukung';
+                showStatus('Browser Anda tidak mendukung NFC. Gunakan Chrome di Android.', 'error');
             }
         });
         
@@ -169,19 +181,30 @@
             try {
                 // Set flag bahwa proses NFC sedang berlangsung
                 isNfcWriteInProgress = true;
+                writeNFCBtn.disabled = true;
                 
-                // Cek apakah browser mendukung Web NFC API
-                if (typeof NDEFReader !== 'function') {
-                    throw new Error('Browser Anda tidak mendukung NFC. Gunakan Chrome di Android.');
-                }
+                // Persiapkan data untuk NFC
+                const encoder = new TextEncoder();
                 
-                showStatus('Menunggu perangkat NFC admin. Silakan dekatkan ponsel Anda ke perangkat admin...', 'info');
+                showStatus('Menunggu perangkat NFC admin. Dekatkan ponsel ke perangkat admin...', 'info');
                 
+                // Membuat reader terlebih dahulu untuk mendapatkan akses
                 const ndef = new NDEFReader();
+                await ndef.scan();
+                
+                // Kemudian tulis pesan ke NFC
                 await ndef.write({
                     records: [
-                        { recordType: "text", data: kodeUnik },
-                        { recordType: "text", data: 'check-in-event' } // Tambahkan identifier untuk jenis operasi
+                        {
+                            recordType: "mime",
+                            mediaType: "application/event-checkin",
+                            data: encoder.encode(JSON.stringify({
+                                kode: kodeUnik,
+                                timestamp: new Date().toISOString(),
+                                action: "check-in"
+                            }))
+                        },
+                        { recordType: "text", data: kodeUnik }
                     ]
                 });
                 
@@ -207,6 +230,7 @@
                 // Reset flag setelah selesai
                 setTimeout(() => {
                     isNfcWriteInProgress = false;
+                    writeNFCBtn.disabled = false;
                 }, 2000);
             }
         });
