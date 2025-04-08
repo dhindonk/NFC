@@ -1,41 +1,338 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <title>Admin Check-In Reader</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Check-In Reader</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 100%;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h2 {
+            color: #444;
+            margin: 20px 0 15px;
+            font-size: 1.2rem;
+        }
+        button {
+            background-color: #2196F3;
+            border: none;
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0b7dda;
+        }
+        .output-container {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            min-height: 100px;
+        }
+        .scan-status {
+            font-weight: bold;
+            color: #31708f;
+            margin-bottom: 10px;
+        }
+        .check-in-record {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #dff0d8;
+            border: 1px solid #d6e9c6;
+            border-radius: 4px;
+            color: #3c763d;
+        }
+        .scan-active {
+            animation: pulse 1.5s infinite;
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 100;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .history {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .history-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .timestamp {
+            color: #777;
+            font-size: 0.8rem;
+        }
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 15px;
+            }
+            button {
+                padding: 10px 15px;
+            }
+        }
+    </style>
 </head>
 
 <body>
-  <h2>Reader Check-In (Admin)</h2>
-  <p>Tap tag NFC user untuk membaca kode unik:</p>
-  <button onclick="startReading()">Mulai Baca NFC</button>
-  <div id="output" style="padding: 10px; border: 1px solid #ccc;"></div>
+    <div class="container">
+        <h1>Admin Absensi Event</h1>
+        
+        <div>
+            <h2>Reader Check-In</h2>
+            <p>Tap tombol untuk mulai membaca tag NFC peserta:</p>
+            <button id="startReading">Mulai Baca NFC</button>
+        </div>
+        
+        <div class="output-container">
+            <div id="scan-status" class="scan-status">Siap untuk memulai pemindaian</div>
+            <div id="output">Belum ada data</div>
+        </div>
+        
+        <div class="history">
+            <h2>Riwayat Check-In</h2>
+            <div id="history-list"></div>
+        </div>
+    </div>
+    
+    <div id="notification" class="notification">
+        Check-in berhasil!
+    </div>
 
-  <script>
-    const output = document.getElementById('output');
-
-    async function startReading() {
-      try {
-        const ndef = new NDEFReader();
-        await ndef.scan();
-        output.innerText = "Menunggu NFC...";
-
-        ndef.onreading = (event) => {
-          const decoder = new TextDecoder();
-          for (const record of event.message.records) {
-            const text = decoder.decode(record.data);
-            output.innerHTML = `<b>Kode Unik:</b> ${text}`;
-            // Di sini kamu bisa kirim ke Laravel pakai fetch POST:
-            // fetch('/api/checkin', { method: 'POST', body: JSON.stringify({ kode: text }) })
-          }
-        };
-
-      } catch (err) {
-        output.innerText = 'Gagal membaca NFC: ' + err;
-      }
-    }
-  </script>
+    <script>
+        // Elemen-elemen DOM
+        const startReadingBtn = document.getElementById('startReading');
+        const outputDiv = document.getElementById('output');
+        const scanStatusDiv = document.getElementById('scan-status');
+        const historyListDiv = document.getElementById('history-list');
+        const notificationDiv = document.getElementById('notification');
+        
+        // Variabel untuk menyimpan instance NDEFReader
+        let ndefReader = null;
+        // Flag untuk memastikan hanya ada satu proses pemindaian
+        let isScanning = false;
+        // Array untuk menyimpan history check-in
+        let checkInHistory = [];
+        
+        // Fungsi untuk memulai pemindaian NFC
+        async function startReading() {
+            if (isScanning) {
+                scanStatusDiv.textContent = "Pemindaian sudah aktif";
+                return;
+            }
+            
+            try {
+                // Cek apakah browser mendukung Web NFC API
+                if (typeof NDEFReader !== 'function') {
+                    throw new Error('Browser Anda tidak mendukung NFC. Gunakan Chrome di Android.');
+                }
+                
+                isScanning = true;
+                scanStatusDiv.textContent = "Menunggu tag NFC...";
+                scanStatusDiv.classList.add('scan-active');
+                startReadingBtn.textContent = "Pemindaian Aktif";
+                
+                ndefReader = new NDEFReader();
+                await ndefReader.scan();
+                
+                ndefReader.onreading = (event) => {
+                    handleNfcReading(event);
+                };
+                
+                ndefReader.onerror = (error) => {
+                    console.error(`Error: ${error}`);
+                    scanStatusDiv.textContent = `Error: ${error}`;
+                    scanStatusDiv.classList.remove('scan-active');
+                    isScanning = false;
+                    startReadingBtn.textContent = "Mulai Baca NFC";
+                };
+                
+            } catch (error) {
+                console.error(error);
+                scanStatusDiv.textContent = `Gagal memulai pemindaian: ${error.message}`;
+                scanStatusDiv.classList.remove('scan-active');
+                isScanning = false;
+                startReadingBtn.textContent = "Mulai Baca NFC";
+            }
+        }
+        
+        // Fungsi untuk menangani pembacaan NFC
+        function handleNfcReading(event) {
+            const decoder = new TextDecoder();
+            let kodeUnik = "";
+            let operationType = "";
+            
+            // Baca semua record dari pesan NFC
+            for (const record of event.message.records) {
+                const data = decoder.decode(record.data);
+                
+                if (record.recordType === "text") {
+                    if (!kodeUnik) {
+                        kodeUnik = data;
+                    } else {
+                        operationType = data;
+                    }
+                }
+            }
+            
+            // Tampilkan kode unik
+            if (kodeUnik) {
+                const timestamp = new Date().toLocaleTimeString();
+                const checkInInfo = {
+                    kode: kodeUnik,
+                    time: timestamp,
+                    operation: operationType || "check-in"
+                };
+                
+                // Tambahkan ke history
+                checkInHistory.unshift(checkInInfo);
+                if (checkInHistory.length > 50) {
+                    checkInHistory.pop(); // Batas maksimal 50 entri
+                }
+                
+                // Update tampilan
+                outputDiv.innerHTML = `
+                    <div class="check-in-record">
+                        <b>Kode Unik:</b> ${kodeUnik}<br>
+                        <b>Waktu:</b> ${timestamp}<br>
+                        <b>Operasi:</b> ${operationType || "check-in"}
+                    </div>
+                `;
+                
+                // Update history list
+                updateHistoryList();
+                
+                // Tampilkan notifikasi
+                showNotification(`Check-in berhasil: ${kodeUnik}`);
+                
+                // Di sini bisa ditambahkan kode untuk mengirim data ke server
+                // sendToServer(checkInInfo);
+            }
+        }
+        
+        // Fungsi untuk update tampilan history
+        function updateHistoryList() {
+            historyListDiv.innerHTML = '';
+            
+            checkInHistory.forEach((item, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item';
+                historyItem.innerHTML = `
+                    <div><b>${item.kode}</b></div>
+                    <div class="timestamp">${item.time} - ${item.operation}</div>
+                `;
+                historyListDiv.appendChild(historyItem);
+            });
+        }
+        
+        // Fungsi untuk menampilkan notifikasi
+        function showNotification(message) {
+            notificationDiv.textContent = message;
+            notificationDiv.style.display = 'block';
+            
+            // Mainkan suara notifikasi jika diinginkan
+            try {
+                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YWoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBhMxYaeqcjYTACMucNfluo9UFwEQFk+a2/LDdzMGAA5V4PvzyoZVGwAJOYDt//7XolwcAAwna9z//N2mZyMBBhpR0f//36dyLAD//UbH/P/gqwebCwALKV/O/9ypdEwEAApJ5/7ptpVkNQUAAlK96feuhGAzBAAANrny/caNZWMhAwIGMrT/8qqIc0Ya//4/lvb/mnJRPkNbMf3/Jo6juglGt/0ROKZGg9MdJpQ5CVN5SCYvvuQdu5UQBzRMm9+u8XaPNw0XkPLWMgw9deTAe5ERFtNPI3MNBL5ARO//VwU3IVhAO7cwCVz/9QsEu+PpMDZqH2Q3CZP8NRIddPzmUwYuhyUgQxSL+XYOLXDnxWARNJLrIC4fd+nYbhMviM8VLyF239yEEgkb1U5OMSynlO/yYhZTudouGUunmJWxmy4s9zaA4I3kwDD1NobqxY77MmgOSzV3/ZYcHtU9F0D//3SdNyqxJg8SoLMBQ35aKoLQVjOK4X8XPEL9elfHOypLRe38Vzc3Iji4sANyP9YyUNOBGj2e4swlL2RHj+88OR50NHbuMi5v57chDlZxgACb+pAJ2zcr5Z4vCe2RHAaHt8nKCwtW4D0OF6Xx1J6wRuXA+QVVV4fhvqAaWNDPSFxqo+X5K3DTn//1TAoTxBKv/5YsF9DRQSd5xQv//Xt0uC5sU0pcNVRu4/83mLJdHd3D3RQVh20MJxfW9v/XnW9WLVry9wdDsPL/vppjWCZ8/OgUL56w/tWeaUQMgtLmGTJ9nv+frnZCF26L0w8yh5vu0pprURZdhM0fWZJ/uaJvYWAbWErLIWyffrS9c1tOKUJOxSFroo2qzGxCKzRcmNgga6Obp9tSPzBNiOQccaKmq9JCRDpFdOklZKO0rrR9YkdIZGnSK2ShubDPXVA+YFiF2SBuqMSssXBEWWHGyjFsqMixulVZXWe/tDhop8yu32FLbWzWfztlm8qofmxSaX3TYUB7kcuMjnNeW3TqNkiPua53iGdjaYf/M0un1I6OdF5vdej5OUmx34SEgWVqdt4+SLnpj3dbZnXi4kFGue6AdHFhb3ze8kJLteuDendhcXzVu0pMrt+JtnBpan3ctkdPtuCJwIdkZoLWrFBRruKL9JVcaX/QzFVRo+yT65dcXnPBz1hRovSbq5FTYn3H3FVNm/aioodXY4TF3k5Ll/e3gnxCYoXJ2UNJnf/GZ4ZOWlwvhSG7VHKYnr2XWUc2hie5TEBmpaanllZMMoIpuEw8aKemqqNdSUBwMrtPOmilqqisaFRGbDa5TzJoo6mmr28/UmU0uVEtaaSqprN9O0pqNbleKG+lq6m1iixScDK4YiF1qLCrvZwbSXQpuWsYfKu4upjGT4iUt2n9grHgRzOlMa9q9YW28kvMwrEyp2v3jMGLEeeuXYQypmz9lsudJfKbE3gpqG78oNW2SvqNAHEnrXL8qdLQWP59AW4kt3f9tdbfdPx7AXMhvH79wtv0ivt7AHogwYP9zN8Gm/x9AXkexof91OQHJ/p5AXogxoz93OQDSPp3AXogxo3+4eMAYPp3AHkgxI7+4+EDbPp3AHggwpD+5eLScwAAeQDBk/7o5HXpAAAgewDAl/7q55oFAACdDL+b/u71ACoAAKyA+h3nZAAAMh4DduFWAAAAVaYRwgAAAH9ZO2MAAADI5s0AAAAA//ywAQAAAAAA//zJAQAAAAAA//3gAQAAAAAA//7zAQAAAAAA//8BAQAAAAAA');
+                audio.play();
+            } catch (e) {
+                console.log('Notifikasi suara tidak dapat diputar', e);
+            }
+            
+            // Sembunyikan notifikasi setelah 3 detik
+            setTimeout(() => {
+                notificationDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Fungsi untuk mengirim data ke server (contoh)
+        function sendToServer(data) {
+            // Implementasi mengirim data ke server
+            // Contoh dengan fetch API:
+            /*
+            fetch('/api/checkin', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log('Success:', result);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+            */
+            console.log('Data siap dikirim ke server:', data);
+        }
+        
+        // Event listener untuk tombol mulai pemindaian
+        startReadingBtn.addEventListener('click', startReading);
+        
+        // Restore history dari local storage jika ada
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedHistory = localStorage.getItem('checkInHistory');
+            if (savedHistory) {
+                try {
+                    checkInHistory = JSON.parse(savedHistory);
+                    updateHistoryList();
+                } catch (e) {
+                    console.error('Error loading history:', e);
+                }
+            }
+        });
+        
+        // Simpan history ke local storage saat halaman akan ditutup
+        window.addEventListener('beforeunload', () => {
+            localStorage.setItem('checkInHistory', JSON.stringify(checkInHistory));
+        });
+    </script>
 </body>
-
 </html>

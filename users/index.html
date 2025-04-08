@@ -3,19 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Check-In Writer</title>
+    <title>Check-In User</title>
     <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
         body {
             font-family: Arial, sans-serif;
+            max-width: 100%;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
             max-width: 600px;
             margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
             padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h2 {
+            color: #444;
+            margin: 20px 0 15px;
+            font-size: 1.2rem;
         }
         button {
             background-color: #4CAF50;
             border: none;
             color: white;
-            padding: 10px 20px;
+            padding: 12px 20px;
             text-align: center;
             text-decoration: none;
             display: inline-block;
@@ -23,57 +46,123 @@
             margin: 10px 0;
             cursor: pointer;
             border-radius: 4px;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
         }
         .status {
             margin-top: 20px;
-            padding: 10px;
+            padding: 15px;
             border-radius: 4px;
+            text-align: center;
         }
         .success {
             background-color: #dff0d8;
             color: #3c763d;
+            border: 1px solid #d6e9c6;
         }
         .error {
             background-color: #f2dede;
             color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+        .info {
+            background-color: #d9edf7;
+            color: #31708f;
+            border: 1px solid #bce8f1;
+        }
+        .user-info {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            display: none;
+        }
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 15px;
+            }
+            button {
+                padding: 10px 15px;
+            }
         }
     </style>
 </head>
 
 <body>
-    <h1>Daftar dulu yuk</h1>
-    <button id="register">Register</button>
+    <div class="container">
+        <h1>Absensi Event</h1>
+        
+        <div id="user-info" class="user-info">
+            <h2>Info Peserta</h2>
+            <p>Kode unik tersimpan: <span id="saved-code">Belum terdaftar</span></p>
+        </div>
+        
+        <div>
+            <h2>Daftar Kehadiran</h2>
+            <p>Silakan daftarkan kode unik Anda terlebih dahulu.</p>
+            <button id="register">Register Kode Unik</button>
+        </div>
 
-    <h2>Halo! Tap tombol di bawah ini untuk simpan kode unik ke NFC:</h2>
-    <button id="writeNFC">Tulis NFC (Check-In Token)</button>
-    
-    <div id="status" class="status" style="display: none;"></div>
+        <div>
+            <h2>Check-In dengan NFC</h2>
+            <p>Tap tombol di bawah, lalu dekatkan ponsel Anda ke perangkat petugas untuk absen:</p>
+            <button id="writeNFC">Tap untuk Check-In</button>
+        </div>
+        
+        <div id="status" class="status" style="display: none;"></div>
+    </div>
 
     <script>
         // Flag untuk menandai proses NFC sedang berjalan
         let isNfcWriteInProgress = false;
         
-        document.getElementById('register').addEventListener('click', () => {
+        // Elemen-elemen DOM
+        const registerBtn = document.getElementById('register');
+        const writeNFCBtn = document.getElementById('writeNFC');
+        const statusDiv = document.getElementById('status');
+        const userInfoDiv = document.getElementById('user-info');
+        const savedCodeSpan = document.getElementById('saved-code');
+        
+        // Cek kode yang tersimpan saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedCode = localStorage.getItem('kode_unik');
+            if (savedCode) {
+                savedCodeSpan.textContent = savedCode;
+                userInfoDiv.style.display = 'block';
+            }
+        });
+        
+        // Event untuk tombol register
+        registerBtn.addEventListener('click', () => {
             const kodeUnik = prompt('Masukkan kode unik Anda:');
-            if (!kodeUnik) {
-                showStatus('Kode tidak valid.', 'error');
+            if (!kodeUnik || kodeUnik.trim() === '') {
+                showStatus('Kode tidak valid. Silakan masukkan kode yang benar.', 'error');
                 return;
             }
 
             localStorage.setItem('kode_unik', kodeUnik);
-            showStatus('Kode unik berhasil disimpan!', 'success');
+            savedCodeSpan.textContent = kodeUnik;
+            userInfoDiv.style.display = 'block';
+            showStatus('Kode unik berhasil disimpan! Anda siap untuk check-in.', 'success');
         });
         
-        document.getElementById('writeNFC').addEventListener('click', async () => {
+        // Event untuk tombol check-in
+        writeNFCBtn.addEventListener('click', async () => {
             // Cek apakah proses NFC sedang berjalan
             if (isNfcWriteInProgress) {
-                showStatus('Proses tulis NFC sedang berjalan, harap tunggu...', 'error');
+                showStatus('Proses check-in sedang berjalan, harap tunggu...', 'info');
                 return;
             }
             
-            const kodeUnik = localStorage.getItem('kode_unik') || prompt('Masukkan kode unik Anda:');
+            const kodeUnik = localStorage.getItem('kode_unik');
             if (!kodeUnik) {
-                showStatus('Kode tidak valid.', 'error');
+                showStatus('Anda belum terdaftar. Silakan register terlebih dahulu.', 'error');
                 return;
             }
 
@@ -86,24 +175,29 @@
                     throw new Error('Browser Anda tidak mendukung NFC. Gunakan Chrome di Android.');
                 }
                 
-                showStatus('Menunggu perangkat NFC. Silakan dekatkan tag NFC ke perangkat Anda...', 'success');
+                showStatus('Menunggu perangkat NFC admin. Silakan dekatkan ponsel Anda ke perangkat admin...', 'info');
                 
                 const ndef = new NDEFReader();
                 await ndef.write({
-                    records: [{ recordType: "text", data: kodeUnik }]
+                    records: [
+                        { recordType: "text", data: kodeUnik },
+                        { recordType: "text", data: 'check-in-event' } // Tambahkan identifier untuk jenis operasi
+                    ]
                 });
                 
-                showStatus('Kode berhasil ditulis ke NFC!', 'success');
+                showStatus('Check-in berhasil! Kode unik telah dikirim ke admin.', 'success');
             } catch (err) {
                 console.error(err);
-                let errorMsg = 'Gagal menulis ke NFC: ';
+                let errorMsg = 'Gagal check-in: ';
                 
                 if (err.name === 'NotSupportedError') {
                     errorMsg += 'Perangkat tidak mendukung NFC.';
                 } else if (err.name === 'NotAllowedError') {
-                    errorMsg += 'Izin NFC ditolak.';
+                    errorMsg += 'Izin NFC ditolak. Aktifkan NFC di pengaturan.';
                 } else if (err.name === 'AbortError') {
                     errorMsg += 'Operasi NFC dibatalkan. Tunggu beberapa detik dan coba lagi.';
+                } else if (err.name === 'NotReadableError') {
+                    errorMsg += 'Tag NFC tidak dapat dibaca.';
                 } else {
                     errorMsg += err.message || 'Error tidak dikenal.';
                 }
@@ -113,17 +207,17 @@
                 // Reset flag setelah selesai
                 setTimeout(() => {
                     isNfcWriteInProgress = false;
-                }, 1000);
+                }, 2000);
             }
         });
         
+        // Fungsi untuk menampilkan status
         function showStatus(message, type) {
-            const statusDiv = document.getElementById('status');
             statusDiv.textContent = message;
             statusDiv.style.display = 'block';
             statusDiv.className = 'status ' + type;
             
-            // Hapus kelas setelah beberapa detik (opsional)
+            // Hapus pesan sukses setelah beberapa detik
             if (type === 'success') {
                 setTimeout(() => {
                     statusDiv.style.display = 'none';
