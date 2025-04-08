@@ -110,6 +110,33 @@
             color: #777;
             font-size: 0.8rem;
         }
+        .debug-container {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fffbf0;
+            border: 1px solid #ffe0b2;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            overflow-y: auto;
+            max-height: 150px;
+        }
+        .debug-log {
+            margin: 3px 0;
+            padding: 3px;
+            border-bottom: 1px dotted #ddd;
+        }
+        .debug-error {
+            color: #d32f2f;
+        }
+        .debug-info {
+            color: #1976d2;
+        }
+        .debug-warning {
+            color: #ff9800;
+        }
+        .debug-success {
+            color: #388e3c;
+        }
         @media (max-width: 480px) {
             body {
                 padding: 10px;
@@ -143,6 +170,16 @@
             <h2>Riwayat Check-In</h2>
             <div id="history-list"></div>
         </div>
+        
+        <div id="debug-container" class="debug-container">
+            <h2>Debug Info</h2>
+            <div id="debug-log"></div>
+            
+            <div id="nfc-info">
+                <h3>Status NFC:</h3>
+                <div id="nfc-status">Checking...</div>
+            </div>
+        </div>
     </div>
     
     <div id="notification" class="notification">
@@ -156,6 +193,8 @@
         const scanStatusDiv = document.getElementById('scan-status');
         const historyListDiv = document.getElementById('history-list');
         const notificationDiv = document.getElementById('notification');
+        const debugLogDiv = document.getElementById('debug-log');
+        const nfcStatusDiv = document.getElementById('nfc-status');
         
         // Variabel untuk menyimpan instance NDEFReader
         let ndefReader = null;
@@ -163,11 +202,22 @@
         let isScanning = false;
         // Array untuk menyimpan history check-in
         let checkInHistory = JSON.parse(localStorage.getItem('checkInHistory') || '[]');
+
+        // Debug log function
+        function debugLog(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.className = `debug-log debug-${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            debugLogDiv.appendChild(logEntry);
+            debugLogDiv.scrollTop = debugLogDiv.scrollHeight;
+            console.log(`[${type}] ${message}`);
+        }
         
         // Fungsi untuk memulai pemindaian NFC
         async function startReading() {
             if (isScanning) {
                 scanStatusDiv.textContent = "Pemindaian sudah aktif";
+                debugLog("Pemindaian sudah aktif, ignoring request", "warning");
                 return;
             }
             
@@ -177,6 +227,7 @@
                     throw new Error('Browser Anda tidak mendukung NFC. Gunakan Chrome di Android.');
                 }
                 
+                debugLog("Memulai pemindaian NFC...", "info");
                 isScanning = true;
                 startReadingBtn.disabled = true;
                 scanStatusDiv.textContent = "Menunggu tag NFC...";
@@ -185,13 +236,32 @@
                 
                 // Membuat dan menggunakan NDEFReader
                 ndefReader = new NDEFReader();
-                await ndefReader.scan();
+                debugLog("NDEFReader created, requesting scan permission...", "info");
+                try {
+                    await ndefReader.scan();
+                    debugLog("NFC scan started successfully!", "success");
+                } catch(scanError) {
+                    debugLog(`NFC scan error: ${scanError.name}: ${scanError.message}`, "error");
+                    throw scanError;
+                }
                 
-                ndefReader.addEventListener("reading", handleNfcReading);
+                ndefReader.addEventListener("reading", (event) => {
+                    debugLog(`NFC reading event triggered!`, "success");
+                    try {
+                        handleNfcReading(event);
+                    } catch(e) {
+                        debugLog(`Error in reading handler: ${e.message}`, "error");
+                    }
+                });
+                
+                ndefReader.addEventListener("readingerror", (error) => {
+                    debugLog(`NFC reading error: ${error}`, "error");
+                });
                 
                 // Tambahkan listener untuk error
                 ndefReader.addEventListener("error", (error) => {
                     console.error(`Error: ${error.message}`);
+                    debugLog(`NFC error event: ${error.message}`, "error");
                     scanStatusDiv.textContent = `Error: ${error.message}`;
                     scanStatusDiv.classList.remove('scan-active');
                     isScanning = false;
@@ -201,6 +271,7 @@
                 
             } catch (error) {
                 console.error(error);
+                debugLog(`Failed to start scanning: ${error.name}: ${error.message}`, "error");
                 scanStatusDiv.textContent = `Gagal memulai pemindaian: ${error.message}`;
                 scanStatusDiv.classList.remove('scan-active');
                 isScanning = false;
@@ -212,36 +283,46 @@
         // Fungsi untuk menangani pembacaan NFC
         function handleNfcReading(event) {
             try {
+                debugLog(`NFC Tag detected! Serial: ${event.serialNumber || 'Unknown'}`, "info");
+                
                 const decoder = new TextDecoder();
                 let kodeUnik = "";
                 let jsonData = null;
                 
                 // Baca semua record dari pesan NFC
-                for (const record of event.message.records) {
-                    console.log("Record type:", record.recordType);
-                    console.log("MIME type:", record.mediaType);
+                if (event.message && event.message.records) {
+                    debugLog(`Records found: ${event.message.records.length}`, "info");
                     
-                    const data = decoder.decode(record.data);
-                    console.log("Data:", data);
-                    
-                    if (record.recordType === "mime" && record.mediaType === "application/event-checkin") {
-                        try {
-                            jsonData = JSON.parse(data);
-                            kodeUnik = jsonData.kode;
-                        } catch (e) {
-                            console.error("Error parsing JSON:", e);
-                        }
-                    } else if (record.recordType === "text") {
-                        // Backup jika JSON tidak berhasil di-parse
-                        if (!kodeUnik) {
-                            kodeUnik = data;
+                    for (const record of event.message.records) {
+                        debugLog(`Record type: ${record.recordType}, MIME: ${record.mediaType || 'N/A'}`, "info");
+                        
+                        const data = decoder.decode(record.data);
+                        debugLog(`Data preview: ${data.substring(0, 50)}${data.length > 50 ? '...' : ''}`, "info");
+                        
+                        if (record.recordType === "mime" && record.mediaType === "application/event-checkin") {
+                            try {
+                                jsonData = JSON.parse(data);
+                                kodeUnik = jsonData.kode;
+                                debugLog(`JSON data parsed, kode: ${kodeUnik}`, "success");
+                            } catch (e) {
+                                debugLog(`Error parsing JSON: ${e.message}`, "error");
+                            }
+                        } else if (record.recordType === "text") {
+                            // Backup jika JSON tidak berhasil di-parse
+                            if (!kodeUnik) {
+                                kodeUnik = data;
+                                debugLog(`Using text record as kode: ${kodeUnik}`, "info");
+                            }
                         }
                     }
+                } else {
+                    debugLog("No records found in NFC message", "warning");
                 }
                 
                 // Jika tidak ada data yang ditemukan, coba ambil dari serialisasi
                 if (!kodeUnik && event.serialNumber) {
                     kodeUnik = event.serialNumber;
+                    debugLog(`Using serial number as kode: ${kodeUnik}`, "info");
                 }
                 
                 // Tampilkan kode unik
@@ -253,6 +334,8 @@
                         operation: jsonData?.action || "check-in",
                         details: jsonData || {}
                     };
+                    
+                    debugLog(`Check-in processed: ${kodeUnik} at ${timestamp}`, "success");
                     
                     // Tambahkan ke history
                     checkInHistory.unshift(checkInInfo);
@@ -281,10 +364,12 @@
                     // Di sini bisa ditambahkan kode untuk mengirim data ke server
                     // sendToServer(checkInInfo);
                 } else {
+                    debugLog("Failed to extract kode from NFC tag", "error");
                     outputDiv.innerHTML = '<div class="error">Tidak dapat membaca kode dari tag NFC!</div>';
                 }
             } catch (error) {
                 console.error("Error saat memproses tag NFC:", error);
+                debugLog(`Error processing NFC tag: ${error.message}`, "error");
                 outputDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
             }
         }
@@ -314,7 +399,7 @@
                 const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YWoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBhMxYaeqcjYTACMucNfluo9UFwEQFk+a2/LDdzMGAA5V4PvzyoZVGwAJOYDt//7XolwcAAwna9z//N2mZyMBBhpR0f//36dyLAD//UbH/P/gqwebCwALKV/O/9ypdEwEAApJ5/7ptpVkNQUAAlK96feuhGAzBAAANrny/caNZWMhAwIGMrT/8qqIc0Ya//4/lvb/mnJRPkNbMf3/Jo6juglGt/0ROKZGg9MdJpQ5CVN5SCYvvuQdu5UQBzRMm9+u8XaPNw0XkPLWMgw9deTAe5ERFtNPI3MNBL5ARO//VwU3IVhAO7cwCVz/9QsEu+PpMDZqH2Q3CZP8NRIddPzmUwYuhyUgQxSL+XYOLXDnxWARNJLrIC4fd+nYbhMviM8VLyF239yEEgkb1U5OMSynlO/yYhZTudouGUunmJWxmy4s9zaA4I3kwDD1NobqxY77MmgOSzV3/ZYcHtU9F0D//3SdNyqxJg8SoLMBQ35aKoLQVjOK4X8XPEL9elfHOypLRe38Vzc3Iji4sANyP9YyUNOBGj2e4swlL2RHj+88OR50NHbuMi5v57chDlZxgACb+pAJ2zcr5Z4vCe2RHAaHt8nKCwtW4D0OF6Xx1J6wRuXA+QVVV4fhvqAaWNDPSFxqo+X5K3DTn//1TAoTxBKv/5YsF9DRQSd5xQv//Xt0uC5sU0pcNVRu4/83mLJdHd3D3RQVh20MJxfW9v/XnW9WLVry9wdDsPL/vppjWCZ8/OgUL56w/tWeaUQMgtLmGTJ9nv+frnZCF26L0w8yh5vu0pprURZdhM0fWZJ/uaJvYWAbWErLIWyffrS9c1tOKUJOxSFroo2qzGxCKzRcmNgga6Obp9tSPzBNiOQccaKmq9JCRDpFdOklZKO0rrR9YkdIZGnSK2ShubDPXVA+YFiF2SBuqMSssXBEWWHGyjFsqMixulVZXWe/tDhop8yu32FLbWzWfztlm8qofmxSaX3TYUB7kcuMjnNeW3TqNkiPua53iGdjaYf/M0un1I6OdF5vdej5OUmx34SEgWVqdt4+SLnpj3dbZnXi4kFGue6AdHFhb3ze8kJLteuDendhcXzVu0pMrt+JtnBpan3ctkdPtuCJwIdkZoLWrFBRruKL9JVcaX/QzFVRo+yT65dcXnPBz1hRovSbq5FTYn3H3FVNm/aioodXY4TF3k5Llfa3gnxCYoXJ2UNJnf/GZ4ZOWlwvhSG7VHKYnr2XWUc2hie5TEBmpaanllZMMoIpuEw8aKemqqNdSUBwMrtPOmilqqisaFRGbDa5TzJoo6mmr28/UmU0uVEtaaSqprN9O0pqNbleKG+lq6m1iixScDK4YiF1qLCrvZwbSXQpuWsYfKu4upjGT4iUt2n9grHgRzOlMa9q9YW28kvMwrEyp2v3jMGLEeeuXYQypmz9lsudJfKbE3gpqG78oNW2SvqNAHEnrXL8qdLQWP59AW4kt3f9tdbfdPx7AXMhvH79wtv0ivt7AHogwYP9zN8Gm/x9AXkexof91OQHJ/p5AXogxoz93OQDSPp3AXogxo3+4eMAYPp3AHkgxI7+4+EDbPp3AHggwpD+5eLScwAAeQDBk/7o5HXpAAAgewDAl/7q55oFAACdDL+b/u71ACoAAKyA+h3nZAAAMh4DduFWAAAAVaYRwgAAAH9ZO2MAAADI5s0AAAAA//ywAQAAAAAA//zJAQAAAAAA//3gAQAAAAAA//7zAQAAAAAA//8BAQAAAAAA');
                 audio.play();
             } catch (e) {
-                console.log('Notifikasi suara tidak dapat diputar', e);
+                debugLog(`Notifikasi suara error: ${e.message}`, "warning");
             }
             
             // Sembunyikan notifikasi setelah 3 detik
@@ -323,25 +408,76 @@
             }, 3000);
         }
         
-        // Fungsi untuk mengirim data ke server (contoh)
-        function sendToServer(data) {
-            // Implementasi mengirim data ke server
-            console.log('Data siap dikirim ke server:', data);
+        // Memeriksa status NFC
+        async function checkNfcStatus() {
+            try {
+                if (typeof NDEFReader !== 'function') {
+                    nfcStatusDiv.textContent = "❌ NFC API tidak tersedia di browser ini";
+                    debugLog("NFC API not available in this browser", "error");
+                    return false;
+                }
+
+                nfcStatusDiv.textContent = "✅ NFC API tersedia";
+                debugLog("NFC API is available", "success");
+                
+                try {
+                    // Test jika bisa membuat NDEF Reader
+                    const testReader = new NDEFReader();
+                    nfcStatusDiv.textContent = "✅ NFC API tersedia (NDEFReader bisa dibuat)";
+                    
+                    // Test jika hardware NFC tersedia dengan request permission
+                    // Ini mungkin akan memunculkan prompt izin
+                    try {
+                        const permResult = await navigator.permissions.query({ name: 'nfc' });
+                        if (permResult.state === 'granted') {
+                            nfcStatusDiv.textContent = "✅ NFC siap digunakan (izin diberikan)";
+                            debugLog("NFC permission is granted", "success");
+                        } else if (permResult.state === 'prompt') {
+                            nfcStatusDiv.textContent = "⚠️ NFC tersedia (butuh izin saat digunakan)";
+                            debugLog("NFC permission will be requested when used", "info");
+                        } else {
+                            nfcStatusDiv.textContent = "❌ Izin NFC ditolak";
+                            debugLog("NFC permission denied", "error");
+                        }
+                    } catch (permError) {
+                        debugLog(`Permission query error: ${permError.message}`, "warning");
+                        nfcStatusDiv.textContent = "⚠️ NFC mungkin tersedia (izin akan diminta saat scan)";
+                    }
+                    
+                    return true;
+                } catch (e) {
+                    nfcStatusDiv.textContent = `❌ Error saat membuat NDEFReader: ${e.message}`;
+                    debugLog(`Error creating NDEFReader: ${e.message}`, "error");
+                    return false;
+                }
+            } catch (e) {
+                nfcStatusDiv.textContent = `❌ Error saat cek NFC: ${e.message}`;
+                debugLog(`Error checking NFC status: ${e.message}`, "error");
+                return false;
+            }
         }
         
         // Event listener untuk tombol mulai pemindaian
         startReadingBtn.addEventListener('click', startReading);
         
         // Load history dari local storage dan tampilkan saat halaman dimuat
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            debugLog("Halaman dimuat, melakukan inisialisasi...", "info");
+            
             // Update tampilan history
             updateHistoryList();
             
-            // Cek apakah browser mendukung Web NFC API
-            if (typeof NDEFReader !== 'function') {
+            // Cek status NFC
+            const nfcAvailable = await checkNfcStatus();
+            
+            // Update button berdasarkan status NFC
+            if (!nfcAvailable) {
                 startReadingBtn.disabled = true;
                 startReadingBtn.textContent = 'NFC Tidak Didukung';
                 scanStatusDiv.textContent = 'Browser Anda tidak mendukung NFC. Gunakan Chrome di Android.';
+                debugLog("NFC not available, disabled start button", "warning");
+            } else {
+                debugLog("Ready to scan NFC tags", "success");
             }
         });
     </script>
